@@ -177,10 +177,30 @@ void print_mode(int mode, int time, int t0) {
 void correct_sound(int success_mode)
 {
   if (success_mode == 1) {
-
-  } else if (success_mode = 2) {
-
-  } else if (success_mode = 3) {
+    tone(PIEZO_PIN, 880, 80);    // A5
+    delay(90);
+    noTone(PIEZO_PIN);
+    delay(30);
+    tone(PIEZO_PIN, 880, 80);    // A5
+    delay(60);
+    noTone(PIEZO_PIN);
+  } 
+  else if (success_mode = 2) {
+    tone(PIEZO_PIN, 1000, 50);
+    delay(60);
+    tone(PIEZO_PIN, 800, 50);
+    delay(60);
+    tone(PIEZO_PIN, 1000, 50);
+    delay(60);
+    noTone(PIEZO_PIN);
+  } 
+  else if (success_mode = 3) {
+    for (int freq = 400; freq <= 900; freq += 10) {
+      tone(PIEZO_PIN, freq);
+      delay(5);
+    }
+  }
+  noTone(PIEZO_PIN);
 
   }
 }
