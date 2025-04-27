@@ -23,7 +23,7 @@ int tilt = 0;
 
 int score = 0;
 int high_score = 0;
-int pause_ms = 0; // for changing game_over screen
+int pause_ms = 0; // for changing game over screen
 
 void setup() {
   Serial.begin(9600);
@@ -50,7 +50,6 @@ void loop() {
   // inputs
   button = digitalRead(BUTTON_PIN); // button: 1 on, 0 off
   twist = analogRead(TWIST_PIN)*5.0/1023.0; // potentiometer: 0.0-5.0V
-  Serial.println(twist);
   if (twist_start == -1.0) {
     twist_start = twist; // Save starting twist position
   }
@@ -62,7 +61,6 @@ void loop() {
       time = t0; // 5 seconds
       button = 0;
       lcd.clear();
-      pause_ms = 0;
       score = 0;
     }
     if (time < t0-250) { // make sure button isn't triggered twice within 250ms ("debouncing")
@@ -105,13 +103,12 @@ void loop() {
     previous_mode = mode;
   }
 
-  print_mode(mode, time, t0); // display the game on LCD
+  print_mode(mode, time, t0, delta_time); // display the game on LCD
   
 }
 
 void print_progress_bar(int time, int t0) {
     int bars = time / (float)t0 * 16;
-    Serial.println(bars);
     for (int i=0; i<bars; i++) {
       lcd.setCursor(i,1);
       lcd.print("#");
@@ -122,7 +119,7 @@ void print_progress_bar(int time, int t0) {
     }
 }
 
-void print_mode(int mode, int time, int t0) {
+void print_mode(int mode, int time, int t0, int delta_time) {
   if (mode == 0) {
     lcd.setCursor(0, 0);
     lcd.print("Press button");
@@ -142,7 +139,6 @@ void print_mode(int mode, int time, int t0) {
     print_progress_bar(time, t0);
   } else if (mode == 4) {
     if (pause_ms < 1500) {
-      lcd.setCursor(0, 0);
       lcd.print("Game Over!      ");
       lcd.setCursor(0, 1); // column 0, line 1
       lcd.print("Score: ");
@@ -166,6 +162,7 @@ void print_mode(int mode, int time, int t0) {
       lcd.print("Press button    ");
       lcd.setCursor(0, 1); // column 0, line 1
       lcd.print("to restart!     ");
+      lcd.setCursor(0, 0);
     } else {
       pause_ms = 0;
     }
@@ -174,8 +171,7 @@ void print_mode(int mode, int time, int t0) {
 }
 
 
-void correct_sound(int success_mode)
-{
+void correct_sound(int success_mode) {
   if (success_mode == 1) {
     tone(PIEZO_PIN, 880, 80);    // A5
     delay(90);
@@ -185,7 +181,7 @@ void correct_sound(int success_mode)
     delay(60);
     noTone(PIEZO_PIN);
   } 
-  else if (success_mode = 2) {
+  else if (success_mode == 2) {
     tone(PIEZO_PIN, 1000, 50);
     delay(60);
     tone(PIEZO_PIN, 800, 50);
@@ -194,14 +190,12 @@ void correct_sound(int success_mode)
     delay(60);
     noTone(PIEZO_PIN);
   } 
-  else if (success_mode = 3) {
+  else if (success_mode == 3) {
     for (int freq = 400; freq <= 900; freq += 10) {
       tone(PIEZO_PIN, freq);
       delay(5);
     }
-  }
-  noTone(PIEZO_PIN);
-
+    noTone(PIEZO_PIN);
   }
 }
 
@@ -218,8 +212,10 @@ void game_over_sound()
 }
 
 void game_over() {
+    pause_ms = 0;
     mode = 4; 
     game_over_sound(); // << play sad sound once
+    pause_ms -= 1400; // account for delay by audio influencing delta_time
     t0 = 5000; // starting speed back to 5 sec
     time = t0;
     high_score = (score > high_score) ? score : high_score;
