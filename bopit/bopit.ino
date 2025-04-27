@@ -18,12 +18,12 @@ int t0 = 5000;
 int time = t0;
 
 int button = 0;
-int twist = 0, twist_side = 0;
+float twist = 0, twist_start = 0;
 int tilt = 0;
 
 void setup() {
   Serial.begin(9600);
-  randomSeed(analogRead(A0));
+  randomSeed(analogRead(A1)); // A1 pin is floating
   lcd.begin(16, 2);
   lcd.clear();
   pinMode(PIEZO_PIN, OUTPUT); // Piezo
@@ -32,63 +32,91 @@ void setup() {
 
 
 void loop() {
-  button = digitalRead(BUTTON_PIN);
   // time (milliseconds)
   current_time = millis();
   delta_time = current_time - prev_time;
   prev_time = current_time;
 
-  Serial.println(time);
-  if (time < 0) mode = 4; // if time runs out, game over
-  else if (mode != 0 && mode != 4) time -= delta_time; //increment timer
+  if (mode != 0 && mode != 4) time -= delta_time; // decrease timer
 
-  if ((mode == 0 || mode == 4) && button) { // starting new game
-    mode = random(3)+1;
-    t0 = 5000; // set max timer to 5 sec
-    time = t0; // 5 seconds
-    button = 0;
-    lcd.clear();
-  } else if (mode == 1) { // Bop it
-    if (button && time < t0-100) { // Button was pressed
+  if (time < 0) { // if time runs out, game over
+    mode = 4; 
+    game_over_sound(); // << play sad sound once
+    t0 = 5000; // starting speed back to 5 sec
+    time = t0;
+  }
+
+
+  // inputs
+  button = digitalRead(BUTTON_PIN); // button: 1 on, 0 off
+  twist = analogRead(TWIST_PIN)*5.0/123.0; // potentiometer: 0.0-5.0V
+  if (twist_start == -1.0) {
+    twist_start = twist; // Save starting twist position
+  }
+  tilt = digitalRead(TILT_PIN); // tilt sensor: 0 tilted, 1 flat
+
+  if (button) {
+    if (time < t0-250) { // make sure button isn't triggered twice within 250ms ("debouncing")
+      if (mode == 0 || mode == 4) { // starting new game
+        mode = 1; // always start with "bop it" ?
+        time = t0; // 5 seconds
+        button = 0;
+        lcd.clear();
+      } else if (mode == 1) { // successful "bop it"
+        correct_sound();
+        delay(250); // Short delay after correct
+        mode = random(3) + 1; // Pick random mode 1-3
+        time = t0; // Reset timer
+      } else { // button pressed during wrong mode
+        mode = 4;
+        game_over_sound(); // << play sad sound once
+        t0 = 5000;
+        time = t0;
+      }
+    }
+    button = 0; // Clear button state
+  }
+
+  if (abs(twist - twist_start) > 0.5) { // Detect significant change (potentiometer changes by >0.5V, or more than 1/10th)
+    // (don't think we have to worry about "debouncing")
+    if (mode == 0 || mode == 4) { // starting new game
+      correct_sound(); // play happy sound just for fun/testing, will still wait for button press
+    } else if (mode == 2) { // successful "twist it"
       correct_sound();
-      // delay(250); // Short delay after correct
+      delay(250); // Short delay after correct
       mode = random(3) + 1; // Pick random mode 1-3
       time = t0; // Reset timer
-      button = 0; // Clear button state
-    }
-  } else if (mode == 2) { // Twist it
-    if (twist_side == 0) {
-      twist_side = analogRead(TWIST_PIN); // Save starting twist position
-    }
-    twist = analogRead(TWIST_PIN);
-    if (abs(twist - twist_side) > 50) { // Detect significant change
-      correct_sound();
-      // delay(250);
-      mode = random(2) + 1;
+    } else { // twisted during wrong mode
+      mode = 4;
+      game_over_sound(); // << play sad sound once
+      t0 = 5000;
       time = t0;
-      twist_side = 0;
     }
-  } else if (mode == 3) {  // Tilt it
-    tilt = digitalRead(TILT_PIN);  // Read the tilt sensor
-    // Serial.print("Tilt: ");
-    // Serial.println(tilt);
-    if (tilt == LOW) {  // If tilt is detected (LOW means tilted)
-        correct_sound();
-        // delay(250);
-        mode = random(3) + 1;  // Pick random mode (1-3)
-        time = t0;  // Reset timer
-    }
-  } else if (mode == 4) {
+    twist_start = -1.0; // reset twister
+  }
 
+  if (tilt==0) {
+    if (time < t0-1000) { // make sure tilt isn't triggered twice within 1 second (give player time to reset, avoid "bouncing")
+      if (mode == 0 || mode == 4) { // starting new game
+        correct_sound(); // play happy sound just for fun/testing, will still wait for button press
+      } else if (mode == 3) { // successful "tilt it"
+        correct_sound();
+        delay(250); // Short delay after correct
+        mode = random(3) + 1; // Pick random mode 1-3
+        time = t0; // Reset timer
+      } else { // button pressed during wrong mode
+        mode = 4;
+        game_over_sound(); // << play sad sound once
+        t0 = 5000;
+        time = t0;
+      }
+    }
+    tilt = 1; // Clear tilt state
   }
 
   if (mode != previous_mode) { // clear screen when mode changes
     lcd.clear();
-    if (mode == 4) {
-      game_over_sound(); // << play sad sound once
-    }
     previous_mode = mode;
-    t0 -= 250;
   }
 
   print_mode(mode, time, t0); // display the game on LCD
@@ -149,9 +177,9 @@ void print_mode(int mode, int time, int t0) {
 void correct_sound()
 {
   tone(PIEZO_PIN, 880, 80);    // A5
-  delay(90);
+  delay(50);
   tone(PIEZO_PIN, 1175, 80);   // D6
-  delay(90);
+  delay(60);
   tone(PIEZO_PIN, 1568, 80);   // G6
   delay(90);
   noTone(PIEZO_PIN);
