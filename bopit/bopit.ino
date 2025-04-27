@@ -5,7 +5,7 @@
 #define TILT_PIN 9
 #define PIEZO_PIN 13
 
-LiquidCrystal lcd(12,11,5,4,3,2); // order is: RS, EN, D4, D5, D6, D7
+LiquidCrystal lcd(11,12,5,4,3,2); // order is: RS, EN, D4, D5, D6, D7
 
 int mode; // 0=startup, 1=bop it, 2=twist it, 3=tilt it, 4=game over
 int previous_mode = -1; // so we know when to clear screen
@@ -73,10 +73,10 @@ void loop() {
     button = 0; // Clear button state
   }
 
-  if (abs(twist - twist_start) > 2.5) { // Detect significant change (potentiometer changes by >0.5V, or more than 1/10th)
+  if (abs(twist - twist_start) > 2) { // Detect significant change (potentiometer changes by >2V, or more than 2/5th of turn)
     // (don't think we have to worry about "debouncing")
     if (mode == 0 || mode == 4) { // starting new game
-      correct_sound(mode); // play happy sound just for fun/testing, will still wait for button press
+      correct_sound(2); // play happy sound just for fun/testing, will still wait for button press
     } else if (mode == 2) { // successful "twist it"
       input_success(mode);
     } else { // twisted during wrong mode
@@ -87,7 +87,7 @@ void loop() {
 
   if (tilt==0) {
     if (mode == 0 || mode == 4) { // starting new game
-      correct_sound(mode); // play happy sound just for fun/testing, will still wait for button press
+      Serial.println("tilted!");
     }
     if (time < t0-500) { // make sure tilt isn't triggered twice within 0.5 second (give player time to reset, avoid "bouncing")
       if (mode == 3) { // successful "tilt it"
@@ -108,30 +108,29 @@ void loop() {
 }
 
 void print_progress_bar(int time, int t0) {
+    lcd.setCursor(0,1);
     int bars = time / (float)t0 * 16;
     for (int i=0; i<bars; i++) {
-      lcd.setCursor(i,1);
-      lcd.print("#");
+      lcd.print('#');
     }
     for (int i=bars; i<16; i++) {
-      lcd.setCursor(i,1);
-      lcd.print(" ");
+      lcd.print(' ');
     }
 }
 
 void print_mode(int mode, int time, int t0, int delta_time) {
   if (mode == 0) {
     lcd.setCursor(0, 0);
-    lcd.print("Press button");
+    lcd.print("Press button    ");
     lcd.setCursor(0, 1); // column 0, line 1
     lcd.print("to start Bop It!");
   } else if (mode == 1) {
     lcd.setCursor(0, 0);
-    lcd.print("-> Bop it!");
+    lcd.print("-> Bop it!      ");
     print_progress_bar(time, t0);
   } else if (mode == 2) {
     lcd.setCursor(0, 0);
-    lcd.print("-> Twist it!");
+    lcd.print("-> Twist it!    ");
     print_progress_bar(time, t0);
   } else if (mode == 3) {
     lcd.setCursor(0, 0);
