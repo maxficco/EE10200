@@ -43,16 +43,15 @@ void loop() {
   else if (mode != 0 && mode != 4) time -= delta_time; //increment timer
 
   if ((mode == 0 || mode == 4) && button) { // starting new game
-    // mode = random(3)+1;
-    mode = 2;
+    mode = random(3)+1;
+    t0 = 5000; // set max timer to 5 sec
     time = t0; // 5 seconds
     button = 0;
     lcd.clear();
-
   } else if (mode == 1) { // Bop it
-    if (button && time < t0-250) { // Button was pressed
+    if (button && time < t0-100) { // Button was pressed
       correct_sound();
-      delay(250); // Short delay after correct
+      // delay(250); // Short delay after correct
       mode = random(3) + 1; // Pick random mode 1-3
       time = t0; // Reset timer
       button = 0; // Clear button state
@@ -64,8 +63,8 @@ void loop() {
     twist = analogRead(TWIST_PIN);
     if (abs(twist - twist_side) > 50) { // Detect significant change
       correct_sound();
-      delay(250);
-      mode = random(3) + 1;
+      // delay(250);
+      mode = random(2) + 1;
       time = t0;
       twist_side = 0;
     }
@@ -73,13 +72,13 @@ void loop() {
     tilt = digitalRead(TILT_PIN);  // Read the tilt sensor
     // Serial.print("Tilt: ");
     // Serial.println(tilt);
-    if (tilt == HIGH) {  // If tilt is detected (HIGH could mean tilted)
+    if (tilt == LOW) {  // If tilt is detected (LOW means tilted)
         correct_sound();
-        delay(250);
+        // delay(250);
         mode = random(3) + 1;  // Pick random mode (1-3)
         time = t0;  // Reset timer
     }
-  } else if (mode == 4) { // Game over
+  } else if (mode == 4) {
 
   }
 
@@ -89,6 +88,7 @@ void loop() {
       game_over_sound(); // << play sad sound once
     }
     previous_mode = mode;
+    t0 -= 250;
   }
 
   print_mode(mode, time, t0); // display the game on LCD
