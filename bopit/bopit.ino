@@ -18,8 +18,12 @@ int t0 = 5000;
 int time = t0;
 
 int button = 0;
-float twist = 0, twist_start = -1;
+float twist = 0, twist_start = -1.0;
 int tilt = 0;
+
+int score = 0;
+int high_score = 0;
+int pause_ms = 0; // for changing game_over screen
 
 void setup() {
   Serial.begin(9600);
@@ -44,6 +48,8 @@ void loop() {
     game_over_sound(); // << play sad sound once
     t0 = 5000; // starting speed back to 5 sec
     time = t0;
+    high_score = (score > high_score) ? score : high_score;
+    score = 0;
   }
 
 
@@ -62,16 +68,11 @@ void loop() {
         time = t0; // 5 seconds
         button = 0;
         lcd.clear();
+        pause_ms = 0;
       } else if (mode == 1) { // successful "bop it"
-        correct_sound();
-        delay(250); // Short delay after correct
-        mode = random(3) + 1; // Pick random mode 1-3
-        time = t0; // Reset timer
+        input_success();
       } else { // button pressed during wrong mode
-        mode = 4;
-        game_over_sound(); // << play sad sound once
-        t0 = 5000;
-        time = t0;
+        game_over();
       }
     }
     button = 0; // Clear button state
@@ -82,15 +83,9 @@ void loop() {
     if (mode == 0 || mode == 4) { // starting new game
       correct_sound(); // play happy sound just for fun/testing, will still wait for button press
     } else if (mode == 2) { // successful "twist it"
-      correct_sound();
-      delay(250); // Short delay after correct
-      mode = random(3) + 1; // Pick random mode 1-3
-      time = t0; // Reset timer
+      input_success();
     } else { // twisted during wrong mode
-      mode = 4;
-      game_over_sound(); // << play sad sound once
-      t0 = 5000;
-      time = t0;
+      game_over();
     }
     twist_start = -1.0; // reset twister
   }
@@ -100,15 +95,9 @@ void loop() {
       if (mode == 0 || mode == 4) { // starting new game
         correct_sound(); // play happy sound just for fun/testing, will still wait for button press
       } else if (mode == 3) { // successful "tilt it"
-        correct_sound();
-        delay(250); // Short delay after correct
-        mode = random(3) + 1; // Pick random mode 1-3
-        time = t0; // Reset timer
+        input_success();
       } else { // button pressed during wrong mode
-        mode = 4;
-        game_over_sound(); // << play sad sound once
-        t0 = 5000;
-        time = t0;
+        game_over();
       }
     }
     tilt = 1; // Clear tilt state
@@ -155,13 +144,28 @@ void print_mode(int mode, int time, int t0) {
     lcd.print("-> Tilt it!");
     print_progress_bar(time, t0);
   } else if (mode == 4) {
-    static int pause_ms = 0;
-    if (pause_ms < 2000) {
+    if (pause_ms < 1500) {
       lcd.setCursor(0, 0);
       lcd.print("Game Over!      ");
       lcd.setCursor(0, 1); // column 0, line 1
-      lcd.print("Score:          ");
-    } else if (pause_ms < 4000) {
+      lcd.print("Score: ");
+      lcd.print(score);
+      int num_digits = (score == 0) ? 1 : (int)log10(score) + 1;
+      for (int i = 0; i < 16 - (7 + num_digits); i++) {
+        lcd.print(' '); // extra spaces to overwrite old content
+      }
+      lcd.print("Score: ");
+    } else if (pause_ms < 3000) {
+      lcd.setCursor(0, 0);
+      lcd.print("High Score:     ");
+      lcd.setCursor(0, 1); // column 0, line 1
+      lcd.print("       ");
+      lcd.print(score);
+      int num_digits = (score == 0) ? 1 : (int)log10(score) + 1;
+      for (int i = 0; i < 16 - (7 + num_digits); i++) {
+        lcd.print(' '); // extra spaces to overwrite old content
+      }
+    } else if (pause_ms < 4500) {
       lcd.setCursor(0, 0);
       lcd.print("Press button    ");
       lcd.setCursor(0, 1); // column 0, line 1
@@ -195,4 +199,22 @@ void game_over_sound()
   tone(PIEZO_PIN, 174, 600); // F3, even lower and longer
   delay(600);
   noTone(PIEZO_PIN);
+}
+
+void game_over() {
+    mode = 4; 
+    game_over_sound(); // << play sad sound once
+    t0 = 5000; // starting speed back to 5 sec
+    time = t0;
+    high_score = (score > high_score) ? score : high_score;
+    score = 0;
+}
+
+void input_success() {
+    correct_sound();
+    delay(250); // Short delay after correct
+    mode = random(3) + 1; // Pick random mode 1-3
+    if (t0 > 2000) t0 -= 250; // time per action decreases from 5 to 2 seconds
+    time = t0; // Reset timer
+    score++;
 }
