@@ -18,7 +18,7 @@ int t0 = 5000;
 int time = t0;
 
 int button = 0;
-float twist = 0, twist_start = 0;
+float twist = 0, twist_start = -1;
 int tilt = 0;
 
 void setup() {
