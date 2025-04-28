@@ -10,7 +10,6 @@ LiquidCrystal lcd(11,12,5,4,3,2); // order is: RS, EN, D4, D5, D6, D7
 int mode; // 0=startup, 1=bop it, 2=twist it, 3=tilt it, 4=game over
 int previous_mode = -1; // so we know when to clear screen
 
-
 unsigned long prev_time = 0;
 unsigned long current_time;
 unsigned long delta_time; 
