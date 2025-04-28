@@ -1,52 +1,61 @@
 #include <LiquidCrystal.h>
 
+// Pin definitions
 #define BUTTON_PIN 10
 #define TWIST_PIN A0
 #define TILT_PIN 9
 #define PIEZO_PIN 13
 
-LiquidCrystal lcd(11,12,5,4,3,2); // order is: RS, EN, D4, D5, D6, D7
+// Initialize lcd pins: RS, EN, D4, D5, D6, D7
+LiquidCrystal lcd(11,12,5,4,3,2); 
 
+// Game variables
 int mode; // 0=startup, 1=bop it, 2=twist it, 3=tilt it, 4=game over
-int previous_mode = -1; // so we know when to clear screen
+int previous_mode = -1; // Tracks previous mode to detect changes
 
+// Timer variables
 unsigned long prev_time = 0;
 unsigned long current_time;
 unsigned long delta_time; 
-int t0 = 5000;
+int t0 = 5000; // Initial timer value (5 seconds)
 int time = t0;
 
+// Input states
 int button = 0;
 float twist = 0, twist_start = -1.0;
 int tilt = 0;
 
+// Score tracking
 int score = 0;
 int high_score = 0;
-int pause_ms = 0; // for changing game over screen
+// Pause timer for game over animations
+int pause_ms = 0;
 
 void setup() {
   Serial.begin(9600);
-  randomSeed(analogRead(A1)); // A1 pin is floating
+  randomSeed(analogRead(A1)); // Seed random (A1 pin is floating)
   lcd.begin(16, 2);
   lcd.clear();
-  pinMode(PIEZO_PIN, OUTPUT); // Piezo
-  mode = 0;
+  pinMode(PIEZO_PIN, OUTPUT); // Piezo buzzer as output
+  mode = 0; // Start at startup mode
 }
 
 
 void loop() {
-  // time (milliseconds)
+  // Track elapsed time (milliseconds)
   current_time = millis();
   delta_time = current_time - prev_time;
   prev_time = current_time;
 
-  if (mode != 0 && mode != 4) time -= delta_time; // decrease timer
+  // Decrease timer in active mode
+  if (mode != 0 && mode != 4) time -= delta_time;
 
-  if (time < 0) { // if time runs out, game over
+  // If time runs out, go to game over
+  if (time < 0) {
     game_over();
   }
 
-  // inputs
+  // Read inputs
   button = digitalRead(BUTTON_PIN); // button: 1 on, 0 off
   twist = analogRead(TWIST_PIN)*5.0/1023.0; // potentiometer: 0.0-5.0V
   if (twist_start == -1.0) {
@@ -54,10 +63,11 @@ void loop() {
   }
   tilt = digitalRead(TILT_PIN); // tilt sensor: 0 tilted, 1 flat
 
+  // Handle button press
   if (button) {
     if (mode == 0 || mode == 4) { // starting new game
-      mode = 1; // always start with "bop it" ?
-      time = t0; // 5 seconds
+      mode = 1; // always start with "bop it"
+      time = t0;
       button = 0;
       lcd.clear();
       score = 0;
@@ -69,11 +79,10 @@ void loop() {
         game_over();
       }
     }
-    button = 0; // Clear button state
+    button = 0; // clear button state
   }
 
   if (abs(twist - twist_start) > 2) { // Detect significant change (potentiometer changes by >2V, or more than 2/5th of turn)
-    // (don't think we have to worry about "debouncing")
     if (mode == 0 || mode == 4) { // starting new game
       correct_sound(2); // play happy sound just for fun/testing, will still wait for button press
     } else if (mode == 2) { // successful "twist it"
@@ -92,20 +101,23 @@ void loop() {
       if (mode == 3) { // successful "tilt it"
         input_success(mode);
       } 
-      // not checking for tilt it during other modes (too sensitive)
+      // No penalty if tilted during wrong mode (tilt sensor is too sensitive)
     }
     tilt = 1; // Clear tilt state
   }
 
-  if (mode != previous_mode) { // clear screen when mode changes
+  // clear screen when mode changes
+  if (mode != previous_mode) { 
     lcd.clear();
     previous_mode = mode;
   }
 
-  print_mode(mode, time, t0, delta_time); // display the game on LCD
+  // display the game on LCD
+  print_mode(mode, time, t0, delta_time); 
   
 }
 
+// Prints the progress bar for time remaining
 void print_progress_bar(int time, int t0) {
     lcd.setCursor(0,1);
     int bars = time / (float)t0 * 16;
@@ -117,6 +129,7 @@ void print_progress_bar(int time, int t0) {
     }
 }
 
+// Displays the current mode (gameplay and game over screens)
 void print_mode(int mode, int time, int t0, int delta_time) {
   if (mode == 0) {
     lcd.setCursor(0, 0);
@@ -162,13 +175,13 @@ void print_mode(int mode, int time, int t0, int delta_time) {
       lcd.print("to restart!     ");
       lcd.setCursor(0, 0);
     } else {
-      pause_ms = 0;
+      pause_ms = 0; // Cycle back to beginning
     }
     pause_ms += delta_time;
   }
 }
 
-
+// Plays a sound for correct input
 void correct_sound(int success_mode) {
   if (success_mode == 1) {
     tone(PIEZO_PIN, 880, 80);    // A5
@@ -197,7 +210,7 @@ void correct_sound(int success_mode) {
   }
 }
 
-
+// Plays sad sound at game over
 void game_over_sound()
 {
   tone(PIEZO_PIN, 220, 400); // A3, low and slow
@@ -209,6 +222,7 @@ void game_over_sound()
   noTone(PIEZO_PIN);
 }
 
+// Handles successful input
 void game_over() {
     pause_ms = 0;
     mode = 4; 
@@ -219,6 +233,7 @@ void game_over() {
     high_score = (score > high_score) ? score : high_score;
 }
 
+// Handles successful input
 void input_success(int success_mode) {
     correct_sound(success_mode);
     mode = random(3) + 1; // Pick random mode 1-3
